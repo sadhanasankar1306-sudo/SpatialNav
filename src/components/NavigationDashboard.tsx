@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, Square, VolumeX, ShieldAlert, Headphones, Radio, AlertTriangle } from 'lucide-react';
+import { Play, Square, VolumeX, ShieldAlert, Headphones, Radio, AlertTriangle, Eye, Sun, Wind, Activity } from 'lucide-react';
 import { RegionalDepthStats, RiskLevel, AudioSettings } from '../types/navigation';
 
 interface NavigationDashboardProps {
@@ -25,36 +25,35 @@ export const NavigationDashboard: React.FC<NavigationDashboardProps> = ({
 }) => {
   const getRiskColor = (level: RiskLevel) => {
     switch (level) {
-      case 'HIGH':
-        return 'bg-rose-600 text-white border-rose-500';
-      case 'MEDIUM':
-        return 'bg-amber-500 text-slate-950 border-amber-400 font-semibold';
+      case 'HIGH_RISK':
+        return 'bg-rose-950/80 text-rose-100 border-rose-500 shadow-rose-950/40';
+      case 'ELEVATED_RISK':
+        return 'bg-amber-950/80 text-amber-100 border-amber-400 shadow-amber-950/40';
       case 'UNKNOWN':
-        return 'bg-purple-600 text-white border-purple-400';
-      case 'LOW':
+        return 'bg-purple-950/80 text-purple-100 border-purple-400 shadow-purple-950/40';
+      case 'LOWER_DETECTED_RISK':
       default:
-        return 'bg-emerald-900/40 text-emerald-300 border-emerald-500/40';
+        return 'bg-emerald-950/40 text-emerald-200 border-emerald-500/40';
     }
   };
 
-  const getRiskLabel = (level: RiskLevel) => {
+  const getRiskBadge = (level: RiskLevel) => {
     switch (level) {
-      case 'HIGH':
-        return 'CLOSE HAZARD';
-      case 'MEDIUM':
-        return 'APPROACHING';
+      case 'HIGH_RISK':
+        return { label: 'HIGH RISK', bg: 'bg-rose-600 text-white' };
+      case 'ELEVATED_RISK':
+        return { label: 'ELEVATED RISK', bg: 'bg-amber-500 text-slate-950 font-bold' };
       case 'UNKNOWN':
-        return 'UNCERTAIN';
-      case 'LOW':
+        return { label: 'UNKNOWN / UNRELIABLE', bg: 'bg-purple-600 text-white' };
+      case 'LOWER_DETECTED_RISK':
       default:
-        return 'CLEAR PATH';
+        return { label: 'LOWER DETECTED RISK', bg: 'bg-emerald-600/60 text-emerald-100' };
     }
   };
 
   // Compute stereo channel volume indicators for visualizer
-  const leftVol = stats.left.riskLevel === 'HIGH' ? 95 : stats.left.riskLevel === 'MEDIUM' ? 60 : 15;
-  const rightVol = stats.right.riskLevel === 'HIGH' ? 95 : stats.right.riskLevel === 'MEDIUM' ? 60 : 15;
-  const centerVol = stats.center.riskLevel === 'HIGH' ? 100 : stats.center.riskLevel === 'MEDIUM' ? 65 : 10;
+  const leftVol = stats.left.riskLevel === 'HIGH_RISK' ? 100 : stats.left.riskLevel === 'ELEVATED_RISK' ? 55 : 0;
+  const rightVol = stats.right.riskLevel === 'HIGH_RISK' ? 100 : stats.right.riskLevel === 'ELEVATED_RISK' ? 55 : 0;
 
   return (
     <div className="space-y-6">
@@ -66,7 +65,7 @@ export const NavigationDashboard: React.FC<NavigationDashboardProps> = ({
         aria-atomic="true"
       >
         {isNavigating
-          ? `${stats.pathRecommendation}. Left: ${stats.left.riskLevel}. Center: ${stats.center.riskLevel}. Right: ${stats.right.riskLevel}.`
+          ? `${stats.pathRecommendation} Left: ${stats.left.riskLevel}. Center: ${stats.center.riskLevel}. Right: ${stats.right.riskLevel}.`
           : 'Navigation stopped.'}
       </div>
 
@@ -75,10 +74,10 @@ export const NavigationDashboard: React.FC<NavigationDashboardProps> = ({
         <div className="flex items-start gap-3">
           <ShieldAlert className="h-5 w-5 shrink-0 text-yellow-400 mt-0.5" />
           <div>
-            <span className="font-bold tracking-wide">RESEARCH PROTOTYPE NOTICE: </span>
-            This system is an experimental assistive research tool. It is <strong>NOT</strong> a certified mobility device
-            and must <strong>NEVER</strong> replace a white cane, guide dog, or Orientation &amp; Mobility (O&amp;M) training.
-            Monocular depth estimation does not reliably detect glass, descending stairs, or drop-offs.
+            <span className="font-bold tracking-wide">RESEARCH PROTOTYPE DIRECTIVE: </span>
+            This application is an experimental perceptual tool and <strong>NOT</strong> a certified mobility aid.
+            It must <strong>NEVER</strong> replace a white cane, guide dog, or Orientation &amp; Mobility (O&amp;M) instruction.
+            Monocular depth estimation does not reliably detect glass panels, transparent doors, or floor drop-offs (stairs, curbs).
           </div>
         </div>
       </div>
@@ -120,19 +119,21 @@ export const NavigationDashboard: React.FC<NavigationDashboardProps> = ({
       {/* Current Real-Time Advisory Callout */}
       <div
         className={`rounded-2xl p-6 border transition-all ${
-          stats.overallRisk === 'HIGH'
-            ? 'border-rose-500/60 bg-rose-950/30'
-            : stats.overallRisk === 'MEDIUM'
-            ? 'border-amber-500/50 bg-amber-950/20'
+          stats.overallRisk === 'HIGH_RISK'
+            ? 'border-rose-500/60 bg-rose-950/40'
+            : stats.overallRisk === 'ELEVATED_RISK'
+            ? 'border-amber-500/50 bg-amber-950/30'
             : stats.overallRisk === 'UNKNOWN'
-            ? 'border-purple-500/60 bg-purple-950/30'
+            ? 'border-purple-500/60 bg-purple-950/40'
             : 'border-slate-800 bg-[#12161f]'
         }`}
       >
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-              Real-Time Path Advisory
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
+              <span>Path Advisory</span>
+              <span className="text-slate-600">&middot;</span>
+              <span className="font-mono text-yellow-400">{getRiskBadge(stats.overallRisk).label}</span>
             </div>
             <div className="text-xl sm:text-2xl font-bold text-white mt-1">
               {stats.pathRecommendation}
@@ -145,96 +146,109 @@ export const NavigationDashboard: React.FC<NavigationDashboardProps> = ({
             </div>
           )}
         </div>
+
+        {/* Environmental Quality Metrics */}
+        <div className="mt-4 pt-3 border-t border-slate-800/80 flex flex-wrap items-center gap-4 text-xs text-slate-400">
+          <div className="flex items-center gap-1.5">
+            <Sun className="h-3.5 w-3.5 text-yellow-400" />
+            <span>Illumination: <strong className="text-white font-mono">{stats.illuminationLux.toFixed(0)} lux</strong></span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Wind className="h-3.5 w-3.5 text-cyan-400" />
+            <span>Motion Energy: <strong className="text-white font-mono">{(stats.motionEnergy * 100).toFixed(0)}%</strong></span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Activity className="h-3.5 w-3.5 text-emerald-400" />
+            <span>Floor Subtraction: <strong className="text-white font-mono">Slope {stats.floorSlope.toFixed(4)}</strong></span>
+          </div>
+        </div>
       </div>
 
       {/* Directional Obstacle Corridor Matrix (Left, Center, Right) */}
       <div className="space-y-2">
         <div className="flex items-center justify-between text-xs text-slate-400 px-1">
-          <span className="font-semibold uppercase tracking-wider">Corridor Zone Analysis</span>
-          <span>EMA Filter: &alpha; = 0.35 &middot; 85th Percentile Disparity</span>
+          <span className="font-semibold uppercase tracking-wider">Regional Corridor Assessment (Floor Subtracted)</span>
+          <span>Multi-Frame Persistence: 3-of-5 Confirmation</span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* LEFT ZONE */}
-          <div
-            className={`rounded-2xl p-5 border transition-all ${getRiskColor(
-              stats.left.riskLevel
-            )}`}
-          >
+          <div className={`rounded-2xl p-5 border transition-all ${getRiskColor(stats.left.riskLevel)}`}>
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider">Left Zone</span>
-              <span className="text-xs font-black px-2 py-0.5 rounded bg-black/20">
-                {getRiskLabel(stats.left.riskLevel)}
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-300">Left Corridor</span>
+              <span className={`text-[10px] font-black px-2 py-0.5 rounded ${getRiskBadge(stats.left.riskLevel).bg}`}>
+                {getRiskBadge(stats.left.riskLevel).label}
               </span>
             </div>
-            <div className="mt-3 text-3xl font-extrabold font-mono tabular-nums">
-              {(stats.left.smoothedDepth * 100).toFixed(0)}%
+            <div className="mt-3 flex items-baseline justify-between">
+              <div className="text-3xl font-extrabold font-mono tabular-nums">
+                {(stats.left.smoothedDisparity * 100).toFixed(0)}%
+              </div>
+              <div className="text-xs text-slate-400 font-mono">
+                Coverage: {(stats.left.spatialCoverageRatio * 100).toFixed(0)}%
+              </div>
             </div>
-            <div className="mt-2 text-xs opacity-80 flex items-center justify-between">
-              <span>Raw: {(stats.left.rawDepth * 100).toFixed(0)}%</span>
-              <span>Stereo Pan: -0.85 (Left)</span>
+            <div className="text-xs text-slate-300 mt-2 line-clamp-2">
+              {stats.left.activeReason}
             </div>
-            {/* Visual proximity bar */}
-            <div className="mt-3 h-2 w-full bg-black/30 rounded-full overflow-hidden">
+            <div className="mt-3 h-2 w-full bg-black/40 rounded-full overflow-hidden">
               <div
                 className="h-full bg-current transition-all duration-150"
-                style={{ width: `${Math.min(100, stats.left.smoothedDepth * 100)}%` }}
+                style={{ width: `${Math.min(100, stats.left.smoothedDisparity * 100)}%` }}
               />
             </div>
           </div>
 
           {/* CENTER ZONE */}
-          <div
-            className={`rounded-2xl p-5 border transition-all ${getRiskColor(
-              stats.center.riskLevel
-            )}`}
-          >
+          <div className={`rounded-2xl p-5 border transition-all ${getRiskColor(stats.center.riskLevel)}`}>
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider">Center Zone</span>
-              <span className="text-xs font-black px-2 py-0.5 rounded bg-black/20">
-                {getRiskLabel(stats.center.riskLevel)}
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-300">Center Corridor</span>
+              <span className={`text-[10px] font-black px-2 py-0.5 rounded ${getRiskBadge(stats.center.riskLevel).bg}`}>
+                {getRiskBadge(stats.center.riskLevel).label}
               </span>
             </div>
-            <div className="mt-3 text-3xl font-extrabold font-mono tabular-nums">
-              {(stats.center.smoothedDepth * 100).toFixed(0)}%
+            <div className="mt-3 flex items-baseline justify-between">
+              <div className="text-3xl font-extrabold font-mono tabular-nums">
+                {(stats.center.smoothedDisparity * 100).toFixed(0)}%
+              </div>
+              <div className="text-xs text-slate-400 font-mono">
+                Coverage: {(stats.center.spatialCoverageRatio * 100).toFixed(0)}%
+              </div>
             </div>
-            <div className="mt-2 text-xs opacity-80 flex items-center justify-between">
-              <span>Raw: {(stats.center.rawDepth * 100).toFixed(0)}%</span>
-              <span>Stereo Pan: 0.0 (Binaural)</span>
+            <div className="text-xs text-slate-300 mt-2 line-clamp-2">
+              {stats.center.activeReason}
             </div>
-            {/* Visual proximity bar */}
-            <div className="mt-3 h-2 w-full bg-black/30 rounded-full overflow-hidden">
+            <div className="mt-3 h-2 w-full bg-black/40 rounded-full overflow-hidden">
               <div
                 className="h-full bg-current transition-all duration-150"
-                style={{ width: `${Math.min(100, stats.center.smoothedDepth * 100)}%` }}
+                style={{ width: `${Math.min(100, stats.center.smoothedDisparity * 100)}%` }}
               />
             </div>
           </div>
 
           {/* RIGHT ZONE */}
-          <div
-            className={`rounded-2xl p-5 border transition-all ${getRiskColor(
-              stats.right.riskLevel
-            )}`}
-          >
+          <div className={`rounded-2xl p-5 border transition-all ${getRiskColor(stats.right.riskLevel)}`}>
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider">Right Zone</span>
-              <span className="text-xs font-black px-2 py-0.5 rounded bg-black/20">
-                {getRiskLabel(stats.right.riskLevel)}
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-300">Right Corridor</span>
+              <span className={`text-[10px] font-black px-2 py-0.5 rounded ${getRiskBadge(stats.right.riskLevel).bg}`}>
+                {getRiskBadge(stats.right.riskLevel).label}
               </span>
             </div>
-            <div className="mt-3 text-3xl font-extrabold font-mono tabular-nums">
-              {(stats.right.smoothedDepth * 100).toFixed(0)}%
+            <div className="mt-3 flex items-baseline justify-between">
+              <div className="text-3xl font-extrabold font-mono tabular-nums">
+                {(stats.right.smoothedDisparity * 100).toFixed(0)}%
+              </div>
+              <div className="text-xs text-slate-400 font-mono">
+                Coverage: {(stats.right.spatialCoverageRatio * 100).toFixed(0)}%
+              </div>
             </div>
-            <div className="mt-2 text-xs opacity-80 flex items-center justify-between">
-              <span>Raw: {(stats.right.rawDepth * 100).toFixed(0)}%</span>
-              <span>Stereo Pan: +0.85 (Right)</span>
+            <div className="text-xs text-slate-300 mt-2 line-clamp-2">
+              {stats.right.activeReason}
             </div>
-            {/* Visual proximity bar */}
-            <div className="mt-3 h-2 w-full bg-black/30 rounded-full overflow-hidden">
+            <div className="mt-3 h-2 w-full bg-black/40 rounded-full overflow-hidden">
               <div
                 className="h-full bg-current transition-all duration-150"
-                style={{ width: `${Math.min(100, stats.right.smoothedDepth * 100)}%` }}
+                style={{ width: `${Math.min(100, stats.right.smoothedDisparity * 100)}%` }}
               />
             </div>
           </div>
@@ -246,10 +260,14 @@ export const NavigationDashboard: React.FC<NavigationDashboardProps> = ({
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Headphones className="h-5 w-5 text-yellow-400" />
-            <span className="text-sm font-bold text-white">Spatial Audio Output Visualizer</span>
+            <span className="text-sm font-bold text-white">Spatial Audio Engine Output</span>
           </div>
           <span className="text-xs text-slate-400">
-            {isNavigating ? 'Audio Engine Active' : 'Audio Engine Standby'}
+            {stats.overallRisk === 'LOWER_DETECTED_RISK'
+              ? 'Silent Mode (Preserving Ambient Environmental Hearing)'
+              : isNavigating
+              ? 'Event-Based Sonic Alerts'
+              : 'Standby'}
           </span>
         </div>
 
@@ -257,13 +275,13 @@ export const NavigationDashboard: React.FC<NavigationDashboardProps> = ({
           {/* Left Headphone Ear Channel */}
           <div className="space-y-2">
             <div className="flex justify-between text-xs text-slate-400">
-              <span className="font-semibold text-slate-300">Left Ear (L Channel)</span>
-              <span className="font-mono tabular-nums">{leftVol}% Gain</span>
+              <span className="font-semibold text-slate-300">Left Headphone Channel</span>
+              <span className="font-mono tabular-nums">{leftVol}%</span>
             </div>
             <div className="h-6 w-full bg-slate-900 rounded-lg p-1 border border-slate-800">
               <div
-                className={`h-full rounded transition-all duration-100 ${
-                  stats.left.riskLevel === 'HIGH' ? 'bg-rose-500' : stats.left.riskLevel === 'MEDIUM' ? 'bg-amber-400' : 'bg-slate-700'
+                className={`h-full rounded transition-all duration-150 ${
+                  stats.left.riskLevel === 'HIGH_RISK' ? 'bg-rose-500' : stats.left.riskLevel === 'ELEVATED_RISK' ? 'bg-amber-400' : 'bg-slate-800'
                 }`}
                 style={{ width: `${isNavigating ? leftVol : 0}%` }}
               />
@@ -273,13 +291,13 @@ export const NavigationDashboard: React.FC<NavigationDashboardProps> = ({
           {/* Right Headphone Ear Channel */}
           <div className="space-y-2">
             <div className="flex justify-between text-xs text-slate-400">
-              <span className="font-semibold text-slate-300">Right Ear (R Channel)</span>
-              <span className="font-mono tabular-nums">{rightVol}% Gain</span>
+              <span className="font-semibold text-slate-300">Right Headphone Channel</span>
+              <span className="font-mono tabular-nums">{rightVol}%</span>
             </div>
             <div className="h-6 w-full bg-slate-900 rounded-lg p-1 border border-slate-800">
               <div
-                className={`h-full rounded transition-all duration-100 ${
-                  stats.right.riskLevel === 'HIGH' ? 'bg-rose-500' : stats.right.riskLevel === 'MEDIUM' ? 'bg-amber-400' : 'bg-slate-700'
+                className={`h-full rounded transition-all duration-150 ${
+                  stats.right.riskLevel === 'HIGH_RISK' ? 'bg-rose-500' : stats.right.riskLevel === 'ELEVATED_RISK' ? 'bg-amber-400' : 'bg-slate-800'
                 }`}
                 style={{ width: `${isNavigating ? rightVol : 0}%` }}
               />
@@ -319,7 +337,7 @@ export const NavigationDashboard: React.FC<NavigationDashboardProps> = ({
                 }
                 className="accent-yellow-400 rounded cursor-pointer"
               />
-              <span className="text-slate-300">Spoken Guidance</span>
+              <span className="text-slate-300">Voice Guidance</span>
             </label>
 
             <label className="flex items-center gap-2 cursor-pointer">
@@ -334,19 +352,9 @@ export const NavigationDashboard: React.FC<NavigationDashboardProps> = ({
                 }
                 className="accent-yellow-400 rounded cursor-pointer"
               />
-              <span className="text-slate-300">Binaural 3D Panning</span>
+              <span className="text-slate-300">Binaural Panning</span>
             </label>
           </div>
-        </div>
-      </div>
-
-      {/* Keyboard Shortcuts for Accessibility & Screen Readers */}
-      <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-xs text-slate-400 flex flex-wrap items-center justify-between gap-3">
-        <span className="font-medium text-slate-300">Quick Keyboard Access:</span>
-        <div className="flex flex-wrap gap-3 font-mono">
-          <span><kbd className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-yellow-300">Space</kbd> Start / Stop</span>
-          <span><kbd className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-yellow-300">M</kbd> Mute Audio</span>
-          <span><kbd className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-yellow-300">1 - 5</kbd> Test Scenarios</span>
         </div>
       </div>
     </div>

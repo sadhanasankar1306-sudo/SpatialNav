@@ -9,7 +9,9 @@ export class SpatialAudioEngine {
   private isMuted: boolean = false;
   private lastSpokenPhrase: string = '';
   private lastSpokenTime: number = 0;
-  private speechMinIntervalMs: number = 2400; // Debounce speech announcements
+  private speechMinIntervalMs: number = 2800; // Debounce speech announcements
+  private lastAlertTimestamp: number = 0;
+  private lastAlertRisk: RiskLevel = 'LOWER_DETECTED_RISK';
 
   constructor() {
     // Lazy initialize on first user gesture
@@ -77,7 +79,7 @@ export class SpatialAudioEngine {
   }
 
   /**
-   * Generates directional stereo beeps based on regional depth stats
+   * Generates directional stereo cues based on regional depth assessments
    */
   public processNavigationFrame(
     stats: RegionalDepthStats,
@@ -93,118 +95,118 @@ export class SpatialAudioEngine {
 
     // Handle UNKNOWN state
     if (stats.overallRisk === 'UNKNOWN') {
-      this.triggerUnknownWarning();
-      if (settings.speechGuidanceEnabled) {
-        this.speakGuidance('Uncertain depth readings. Proceed with caution.', onSpeechUtterance);
+      const now = Date.now();
+      if (now - this.lastAlertTimestamp > 3200) {
+        this.triggerUnknownWarning();
+        this.lastAlertTimestamp = now;
+        if (settings.speechGuidanceEnabled) {
+          this.speakGuidance(`Caution: ${stats.diagnosticSummary}`, onSpeechUtterance);
+        }
       }
+      return;
+    }
+
+    // Handle LOWER_DETECTED_RISK (Clear path: keep silent to preserve ambient hearing!)
+    if (stats.overallRisk === 'LOWER_DETECTED_RISK') {
+      this.stopContinuousBeep();
+      this.lastAlertRisk = 'LOWER_DETECTED_RISK';
       return;
     }
 
     // Determine highest threat region
-    const leftThreat = stats.left.smoothedDepth;
-    const centerThreat = stats.center.smoothedDepth;
-    const rightThreat = stats.right.smoothedDepth;
-    const maxThreat = Math.max(leftThreat, centerThreat, rightThreat);
+    const leftThreat = stats.left.smoothedDisparity;
+    const centerThreat = stats.center.smoothedDisparity;
+    const rightThreat = stats.right.smoothedDisparity;
 
-    if (maxThreat < 0.35) {
-      // Clear path, stop beeping
-      this.stopContinuousBeep();
-      return;
-    }
-
-    // Determine directional panning (-1.0 to +1.0)
-    let targetPan = 0;
-    let hazardLevel: RiskLevel = 'LOW';
+    let targetPan = 0.0;
+    let hazardLevel: RiskLevel = stats.overallRisk;
     let directionDescription = 'Ahead';
 
-    if (centerThreat >= leftThreat && centerThreat >= rightThreat) {
+    if (stats.center.riskLevel === 'HIGH_RISK') {
       targetPan = 0.0;
-      hazardLevel = stats.center.riskLevel;
-      directionDescription = 'ahead';
-    } else if (leftThreat > rightThreat) {
+      hazardLevel = 'HIGH_RISK';
+      directionDescription = 'directly ahead';
+    } else if (stats.left.riskLevel === 'HIGH_RISK') {
       targetPan = -0.85; // Left stereo channel
-      hazardLevel = stats.left.riskLevel;
+      hazardLevel = 'HIGH_RISK';
       directionDescription = 'on your left';
-    } else {
+    } else if (stats.right.riskLevel === 'HIGH_RISK') {
       targetPan = 0.85; // Right stereo channel
-      hazardLevel = stats.right.riskLevel;
+      hazardLevel = 'HIGH_RISK';
       directionDescription = 'on your right';
+    } else if (stats.center.riskLevel === 'ELEVATED_RISK') {
+      targetPan = 0.0;
+      hazardLevel = 'ELEVATED_RISK';
+      directionDescription = 'approaching ahead';
+    } else if (leftThreat > rightThreat) {
+      targetPan = -0.85;
+      hazardLevel = 'ELEVATED_RISK';
+      directionDescription = 'approaching on left';
+    } else {
+      targetPan = 0.85;
+      hazardLevel = 'ELEVATED_RISK';
+      directionDescription = 'approaching on right';
     }
 
-    // Calculate frequency: higher pitch for closer obstacles
-    const freqRange = settings.maxFrequencyHz - settings.baseFrequencyHz;
-    const normalizedThreat = Math.min(1.0, Math.max(0, (maxThreat - 0.3) / 0.7));
-    const targetFreq = settings.baseFrequencyHz + (normalizedThreat * freqRange);
+    // Frequency modulation: high urgency = higher pitch
+    const targetFreq = hazardLevel === 'HIGH_RISK' ? 840 : 440;
+    const pulseIntervalMs = hazardLevel === 'HIGH_RISK' ? 320 : 950;
 
-    // Pulse cadence: faster beeps for high hazard (from 1 Hz up to 6 Hz)
-    const pulseIntervalMs = Math.max(130, Math.round(900 - (normalizedThreat * 750)));
+    // Cooldown verification to avoid ear fatigue
+    const now = Date.now();
+    const cooldown = hazardLevel === 'HIGH_RISK' ? 320 : settings.alertCooldownMs || 1100;
 
-    this.scheduleStereoPulse(targetPan, targetFreq, pulseIntervalMs, hazardLevel);
+    if (now - this.lastAlertTimestamp >= cooldown || (hazardLevel === 'HIGH_RISK' && this.lastAlertRisk !== 'HIGH_RISK')) {
+      this.lastAlertTimestamp = now;
+      this.lastAlertRisk = hazardLevel;
+      this.playDirectionalBeep(targetPan, targetFreq, hazardLevel);
+    }
 
-    // Speech guidance triggers for significant transitions
-    if (settings.speechGuidanceEnabled && hazardLevel === 'HIGH') {
-      const phrase = `Obstacle ${directionDescription}`;
-      this.speakGuidance(phrase, onSpeechUtterance);
-    } else if (settings.speechGuidanceEnabled && hazardLevel === 'MEDIUM') {
-      if (stats.primaryDirection === 'LEFT') {
-        this.speakGuidance('Obstacle approaching left', onSpeechUtterance);
-      } else if (stats.primaryDirection === 'RIGHT') {
-        this.speakGuidance('Obstacle approaching right', onSpeechUtterance);
-      } else if (stats.primaryDirection === 'CENTER') {
-        this.speakGuidance('Obstacle approaching center', onSpeechUtterance);
+    // Spoken voice guidance for major transitions
+    if (settings.speechGuidanceEnabled) {
+      if (hazardLevel === 'HIGH_RISK') {
+        this.speakGuidance(`Obstacle ${directionDescription}`, onSpeechUtterance);
+      } else if (hazardLevel === 'ELEVATED_RISK') {
+        this.speakGuidance(`Notice: Obstacle ${directionDescription}`, onSpeechUtterance);
       }
     }
   }
 
-  private scheduleStereoPulse(pan: number, frequency: number, intervalMs: number, risk: RiskLevel) {
-    if (!this.ctx || !this.masterGain) return;
+  private playDirectionalBeep(pan: number, frequency: number, risk: RiskLevel) {
+    if (!this.ctx || !this.masterGain || this.isMuted) return;
 
-    if (this.pulseTimer !== null) {
-      // Already running, update if needed
-      return;
+    const osc = this.ctx.createOscillator();
+    const envelope = this.ctx.createGain();
+
+    osc.type = risk === 'HIGH_RISK' ? 'sawtooth' : 'sine';
+    osc.frequency.setValueAtTime(frequency, this.ctx.currentTime);
+
+    const panner = this.ctx.createStereoPanner ? this.ctx.createStereoPanner() : null;
+    if (panner) {
+      panner.pan.setValueAtTime(pan, this.ctx.currentTime);
+      osc.connect(envelope);
+      envelope.connect(panner);
+      panner.connect(this.masterGain);
+    } else {
+      osc.connect(envelope);
+      envelope.connect(this.masterGain);
     }
 
-    const playBeep = () => {
-      if (!this.ctx || !this.masterGain || this.isMuted) return;
+    const now = this.ctx.currentTime;
+    const duration = risk === 'HIGH_RISK' ? 0.08 : 0.06;
+    envelope.gain.setValueAtTime(0.0001, now);
+    envelope.gain.exponentialRampToValueAtTime(risk === 'HIGH_RISK' ? 0.45 : 0.25, now + 0.01);
+    envelope.gain.exponentialRampToValueAtTime(0.0001, now + duration);
 
-      const osc = this.ctx.createOscillator();
-      const envelope = this.ctx.createGain();
-
-      // Dual-timbre: square/triangle for high urgent alerts, sine for medium
-      osc.type = risk === 'HIGH' ? 'sawtooth' : 'sine';
-      osc.frequency.setValueAtTime(frequency, this.ctx.currentTime);
-
-      const panner = this.ctx.createStereoPanner ? this.ctx.createStereoPanner() : null;
-      if (panner) {
-        panner.pan.setValueAtTime(pan, this.ctx.currentTime);
-        osc.connect(envelope);
-        envelope.connect(panner);
-        panner.connect(this.masterGain);
-      } else {
-        osc.connect(envelope);
-        envelope.connect(this.masterGain);
-      }
-
-      // Attack and decay envelope
-      const now = this.ctx.currentTime;
-      const duration = risk === 'HIGH' ? 0.08 : 0.06;
-      envelope.gain.setValueAtTime(0.0001, now);
-      envelope.gain.exponentialRampToValueAtTime(0.35, now + 0.01);
-      envelope.gain.exponentialRampToValueAtTime(0.0001, now + duration);
-
-      osc.start(now);
-      osc.stop(now + duration + 0.02);
-    };
-
-    playBeep();
-    this.pulseTimer = window.setInterval(playBeep, intervalMs);
+    osc.start(now);
+    osc.stop(now + duration + 0.02);
   }
 
   private triggerUnknownWarning() {
     this.stopContinuousBeep();
     if (!this.ctx || !this.masterGain || this.isMuted) return;
 
-    // Distinct triple-chime descending for UNKNOWN / STALE warning
+    // Distinct triple descending chime for UNKNOWN condition
     const now = this.ctx.currentTime;
     const osc = this.ctx.createOscillator();
     const env = this.ctx.createGain();
@@ -214,14 +216,14 @@ export class SpatialAudioEngine {
     osc.frequency.setValueAtTime(260, now + 0.12);
     osc.frequency.setValueAtTime(200, now + 0.24);
 
-    env.gain.setValueAtTime(0.2, now);
-    env.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+    env.gain.setValueAtTime(0.25, now);
+    env.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
 
     osc.connect(env);
     env.connect(this.masterGain);
 
     osc.start(now);
-    osc.stop(now + 0.42);
+    osc.stop(now + 0.48);
   }
 
   public speakGuidance(text: string, onSpeechUtterance?: (text: string) => void) {
@@ -241,7 +243,7 @@ export class SpatialAudioEngine {
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 1.15; // Slightly brisk for rapid spatial feedback
+      utterance.rate = 1.15;
       utterance.pitch = 1.05;
       utterance.volume = 0.9;
       window.speechSynthesis.speak(utterance);

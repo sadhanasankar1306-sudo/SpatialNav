@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Camera, Video, AlertCircle, RefreshCw, Layers, CheckCircle2 } from 'lucide-react';
+import { Camera, Video, AlertCircle, RefreshCw, Layers, ShieldCheck, Sliders, Sun, Wind } from 'lucide-react';
 import { IndoorChallengeScenario, NavigationThresholds, RegionalDepthStats, TelemetryData } from '../types/navigation';
 import { depthEngine } from '../services/depthEstimationEngine';
 
@@ -38,13 +38,13 @@ export const CameraDepthVision: React.FC<CameraDepthVisionProps> = ({
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   const [elapsedScenarioMs, setElapsedScenarioMs] = useState<number>(0);
   const [challengeDescription, setChallengeDescription] = useState<string>('');
+  const [showAdvancedTuning, setShowAdvancedTuning] = useState<boolean>(false);
 
   // Setup Live Camera or Synthetic Scenario loop
   useEffect(() => {
     let active = true;
 
     if (useLiveCamera) {
-      // Start real webcam stream
       navigator.mediaDevices
         ?.getUserMedia({
           video: {
@@ -70,7 +70,6 @@ export const CameraDepthVision: React.FC<CameraDepthVisionProps> = ({
           onToggleLiveCamera(false);
         });
     } else {
-      // Clean up webcam stream if active
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((track) => track.stop());
         streamRef.current = null;
@@ -95,7 +94,6 @@ export const CameraDepthVision: React.FC<CameraDepthVisionProps> = ({
       lastTime = now;
 
       if (useLiveCamera && videoRef.current && videoRef.current.readyState >= 2) {
-        // Sample live video frame via offscreen canvas
         const video = videoRef.current;
         const offCanvas = document.createElement('canvas');
         offCanvas.width = 256;
@@ -119,7 +117,6 @@ export const CameraDepthVision: React.FC<CameraDepthVisionProps> = ({
           }
         }
       } else if (!useLiveCamera) {
-        // Run synthetic challenge scenario
         setElapsedScenarioMs((prev) => {
           const next = prev + delta;
           const result = depthEngine.generateChallengeFrame(selectedScenario, next, thresholds);
@@ -166,7 +163,7 @@ export const CameraDepthVision: React.FC<CameraDepthVisionProps> = ({
             }`}
           >
             <Layers className="h-4 w-4" />
-            <span>Indoor Challenge Testbeds</span>
+            <span>Standard Indoor Benchmarks</span>
           </button>
 
           <button
@@ -216,11 +213,11 @@ export const CameraDepthVision: React.FC<CameraDepthVisionProps> = ({
         </div>
       )}
 
-      {/* Controlled Indoor Challenge Scenario Buttons */}
+      {/* Controlled Indoor Challenge Scenario Selectors */}
       {!useLiveCamera && (
         <div className="space-y-2">
           <div className="flex items-center justify-between text-xs text-slate-400 px-1">
-            <span className="font-semibold uppercase tracking-wider">Select Indoor Obstacle Testbed</span>
+            <span className="font-semibold uppercase tracking-wider">Evaluation Testbed Scenarios</span>
             <span>{challengeDescription}</span>
           </div>
 
@@ -234,12 +231,13 @@ export const CameraDepthVision: React.FC<CameraDepthVisionProps> = ({
                 }}
                 className={`p-3 rounded-xl border text-left transition-all ${
                   selectedScenario.id === sc.id
-                    ? 'border-yellow-400 bg-yellow-400/10 text-yellow-300'
+                    ? 'border-yellow-400 bg-yellow-400/10 text-yellow-300 ring-2 ring-yellow-400/30'
                     : 'border-slate-800 bg-[#12161f] text-slate-400 hover:text-white'
                 }`}
               >
                 <div className="text-xs font-bold text-white truncate">{sc.title}</div>
-                <div className="text-[10px] opacity-75 mt-0.5 line-clamp-2">{sc.description}</div>
+                <div className="text-[10px] text-slate-400 mt-0.5 line-clamp-1">{sc.category}</div>
+                <div className="text-[10px] opacity-70 mt-1 line-clamp-2">{sc.description}</div>
               </button>
             ))}
           </div>
@@ -253,7 +251,7 @@ export const CameraDepthVision: React.FC<CameraDepthVisionProps> = ({
           <div className="flex items-center justify-between text-xs">
             <div className="flex items-center gap-2">
               <Video className="h-4 w-4 text-yellow-400" />
-              <span className="font-bold text-white">Camera Input Stream (CameraX Emulation)</span>
+              <span className="font-bold text-white">Input Video Frame (CameraX Ingestion)</span>
             </div>
             <span className="font-mono text-slate-400 tabular-nums">
               Preview: {telemetry.previewFps.toFixed(0)} FPS
@@ -271,10 +269,10 @@ export const CameraDepthVision: React.FC<CameraDepthVisionProps> = ({
               />
             ) : (
               <div className="w-full h-full relative flex flex-col items-center justify-center p-6 text-center bg-gradient-to-b from-slate-900 to-black">
-                <div className="text-sm font-semibold text-slate-300">{selectedScenario.title}</div>
-                <div className="text-xs text-slate-500 mt-2 max-w-xs">{selectedScenario.description}</div>
+                <div className="text-sm font-semibold text-slate-200">{selectedScenario.title}</div>
+                <div className="text-xs text-slate-400 mt-2 max-w-xs">{selectedScenario.description}</div>
                 <div className="mt-4 px-3 py-1 rounded-full bg-slate-800 text-[11px] font-mono text-yellow-400">
-                  Speed: {selectedScenario.simulatedSpeedMps} m/s
+                  Target Ground Truth: {selectedScenario.groundTruthRisk}
                 </div>
               </div>
             )}
@@ -282,24 +280,24 @@ export const CameraDepthVision: React.FC<CameraDepthVisionProps> = ({
             {/* Region Division Guides */}
             <div className="absolute inset-0 pointer-events-none grid grid-cols-3 border border-white/10">
               <div className="border-r border-white/20 flex items-start justify-center pt-2">
-                <span className="bg-black/60 px-2 py-0.5 rounded text-[10px] text-white/70">Left (33%)</span>
+                <span className="bg-black/60 px-2 py-0.5 rounded text-[10px] text-white/70">Left Zone</span>
               </div>
               <div className="border-r border-white/20 flex items-start justify-center pt-2">
-                <span className="bg-black/60 px-2 py-0.5 rounded text-[10px] text-white/70">Center (33%)</span>
+                <span className="bg-black/60 px-2 py-0.5 rounded text-[10px] text-white/70">Center Zone</span>
               </div>
               <div className="flex items-start justify-center pt-2">
-                <span className="bg-black/60 px-2 py-0.5 rounded text-[10px] text-white/70">Right (33%)</span>
+                <span className="bg-black/60 px-2 py-0.5 rounded text-[10px] text-white/70">Right Zone</span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Screen 2: Real-Time Depth Map & Floor Masking */}
+        {/* Screen 2: Real-Time Depth Map & Floor Subtraction Overlay */}
         <div className="rounded-2xl border border-slate-800 bg-[#12161f] p-4 space-y-3">
           <div className="flex items-center justify-between text-xs">
             <div className="flex items-center gap-2">
               <Layers className="h-4 w-4 text-cyan-400" />
-              <span className="font-bold text-white">Estimated Relative Depth Tensor D(x, y)</span>
+              <span className="font-bold text-white">Floor-Subtracted Depth &amp; Obstacle Clusters</span>
             </div>
             <span className="font-mono text-cyan-400 tabular-nums">
               Inference: {telemetry.inferenceFps.toFixed(0)} FPS ({telemetry.latency.totalEndToEndMs.toFixed(1)} ms)
@@ -309,11 +307,11 @@ export const CameraDepthVision: React.FC<CameraDepthVisionProps> = ({
           <div className="relative aspect-square w-full rounded-xl overflow-hidden bg-black flex items-center justify-center border border-slate-800">
             <canvas ref={depthCanvasRef} className="w-full h-full object-cover" />
 
-            {/* Color key overlay */}
-            <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between bg-black/75 px-3 py-1.5 rounded-lg text-[10px] font-mono text-white/90">
-              <span className="text-cyan-400">Distant (0.0)</span>
-              <span className="text-yellow-400">Floor Plane Rejected (-20%)</span>
-              <span className="text-rose-400">Imminent (1.0)</span>
+            {/* Diagnostic Legend Overlay */}
+            <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between bg-black/85 px-3 py-1.5 rounded-lg text-[10px] font-mono text-white/90">
+              <span className="text-cyan-400">--- Floor Baseline</span>
+              <span className="text-rose-400">&#9633; Obstacle Cluster BBox</span>
+              <span className="text-emerald-400">&#10003; 3-Frame Confirmed</span>
             </div>
           </div>
         </div>
@@ -321,85 +319,161 @@ export const CameraDepthVision: React.FC<CameraDepthVisionProps> = ({
 
       {/* Threshold & Calibration Controls */}
       <div className="rounded-2xl border border-slate-800 bg-[#12161f] p-5 space-y-4">
-        <div className="text-xs font-bold uppercase tracking-wider text-slate-300">
-          Threshold Calibration &amp; Temporal Tuning
+        <div className="flex items-center justify-between">
+          <div className="text-xs font-bold uppercase tracking-wider text-slate-300">
+            Pipeline Calibration &amp; Temporal Tuning
+          </div>
+          <button
+            onClick={() => setShowAdvancedTuning(!showAdvancedTuning)}
+            className="flex items-center gap-1.5 text-xs text-yellow-400 hover:text-yellow-300 font-semibold"
+          >
+            <Sliders className="h-3.5 w-3.5" />
+            <span>{showAdvancedTuning ? 'Hide Advanced' : 'Show Advanced'}</span>
+          </button>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-xs text-slate-400">
           <div>
             <div className="flex justify-between mb-1.5">
-              <span>High Risk Boundary (&tau;_enter):</span>
+              <span>High Risk Threshold (&tau;_enter):</span>
               <span className="font-mono text-white">{thresholds.highRiskEnter.toFixed(2)}</span>
             </div>
             <input
               type="range"
-              min="0.55"
-              max="0.90"
+              min="0.60"
+              max="0.88"
               step="0.02"
               value={thresholds.highRiskEnter}
               onChange={(e) =>
                 onUpdateThresholds({
                   ...thresholds,
                   highRiskEnter: parseFloat(e.target.value),
-                  highRiskExit: parseFloat(e.target.value) - 0.08, // Keep 0.08 hysteresis band
+                  highRiskExit: parseFloat(e.target.value) - 0.12,
                 })
               }
               className="accent-yellow-400 w-full cursor-pointer"
             />
             <div className="text-[10px] text-slate-500 mt-1">
-              Hysteresis Exit: {thresholds.highRiskExit.toFixed(2)}
+              Hysteresis Exit: {thresholds.highRiskExit.toFixed(2)} (&Delta; = 0.12)
             </div>
           </div>
 
           <div>
             <div className="flex justify-between mb-1.5">
-              <span>Medium Risk Boundary (&tau;_enter):</span>
-              <span className="font-mono text-white">{thresholds.mediumRiskEnter.toFixed(2)}</span>
+              <span>Elevated Risk Threshold (&tau;_enter):</span>
+              <span className="font-mono text-white">{thresholds.elevatedRiskEnter.toFixed(2)}</span>
             </div>
             <input
               type="range"
-              min="0.30"
+              min="0.35"
               max="0.60"
               step="0.02"
-              value={thresholds.mediumRiskEnter}
+              value={thresholds.elevatedRiskEnter}
               onChange={(e) =>
                 onUpdateThresholds({
                   ...thresholds,
-                  mediumRiskEnter: parseFloat(e.target.value),
-                  mediumRiskExit: parseFloat(e.target.value) - 0.08,
+                  elevatedRiskEnter: parseFloat(e.target.value),
+                  elevatedRiskExit: parseFloat(e.target.value) - 0.10,
                 })
               }
               className="accent-yellow-400 w-full cursor-pointer"
             />
             <div className="text-[10px] text-slate-500 mt-1">
-              Hysteresis Exit: {thresholds.mediumRiskExit.toFixed(2)}
+              Hysteresis Exit: {thresholds.elevatedRiskExit.toFixed(2)} (&Delta; = 0.10)
             </div>
           </div>
 
           <div>
             <div className="flex justify-between mb-1.5">
-              <span>EMA Temporal Smoothing (&alpha;):</span>
-              <span className="font-mono text-white">{thresholds.emaAlpha.toFixed(2)}</span>
+              <span>Floor Elevation Margin:</span>
+              <span className="font-mono text-white">{thresholds.floorMarginThreshold.toFixed(2)}</span>
             </div>
             <input
               type="range"
-              min="0.15"
-              max="0.80"
-              step="0.05"
-              value={thresholds.emaAlpha}
+              min="0.06"
+              max="0.25"
+              step="0.01"
+              value={thresholds.floorMarginThreshold}
               onChange={(e) =>
                 onUpdateThresholds({
                   ...thresholds,
-                  emaAlpha: parseFloat(e.target.value),
+                  floorMarginThreshold: parseFloat(e.target.value),
                 })
               }
               className="accent-yellow-400 w-full cursor-pointer"
             />
             <div className="text-[10px] text-slate-500 mt-1">
-              Lower = smoother, Higher = lower alert lag
+              Minimum height above floor to qualify as obstacle
             </div>
           </div>
         </div>
+
+        {showAdvancedTuning && (
+          <div className="pt-4 border-t border-slate-800 grid grid-cols-1 sm:grid-cols-3 gap-6 text-xs text-slate-400">
+            <div>
+              <div className="flex justify-between mb-1.5">
+                <span>Confirmation Frames (M-of-5):</span>
+                <span className="font-mono text-white">{thresholds.confirmationFrames} frames</span>
+              </div>
+              <input
+                type="range"
+                min="1"
+                max="5"
+                step="1"
+                value={thresholds.confirmationFrames}
+                onChange={(e) =>
+                  onUpdateThresholds({ ...thresholds, confirmationFrames: parseInt(e.target.value, 10) })
+                }
+                className="accent-yellow-400 w-full cursor-pointer"
+              />
+              <div className="text-[10px] text-slate-500 mt-1">
+                Frames required before issuing ordinary alert
+              </div>
+            </div>
+
+            <div>
+              <div className="flex justify-between mb-1.5">
+                <span>Clearing Frames:</span>
+                <span className="font-mono text-white">{thresholds.clearingFrames} frames</span>
+              </div>
+              <input
+                type="range"
+                min="2"
+                max="8"
+                step="1"
+                value={thresholds.clearingFrames}
+                onChange={(e) =>
+                  onUpdateThresholds({ ...thresholds, clearingFrames: parseInt(e.target.value, 10) })
+                }
+                className="accent-yellow-400 w-full cursor-pointer"
+              />
+              <div className="text-[10px] text-slate-500 mt-1">
+                Consecutive clear frames before lowering alert
+              </div>
+            </div>
+
+            <div>
+              <div className="flex justify-between mb-1.5">
+                <span>Min Cluster Area:</span>
+                <span className="font-mono text-white">{thresholds.minClusterAreaPixels} px</span>
+              </div>
+              <input
+                type="range"
+                min="40"
+                max="250"
+                step="10"
+                value={thresholds.minClusterAreaPixels}
+                onChange={(e) =>
+                  onUpdateThresholds({ ...thresholds, minClusterAreaPixels: parseInt(e.target.value, 10) })
+                }
+                className="accent-yellow-400 w-full cursor-pointer"
+              />
+              <div className="text-[10px] text-slate-500 mt-1">
+                Rejects small isolated noise specs below this area
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
