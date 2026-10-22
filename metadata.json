@@ -1,0 +1,6 @@
+{
+  "name": "SpatialNav AI - On-Device Depth & Spatial Audio Navigation",
+  "description": "Research prototype and Android system for spatial obstacle perception using on-device monocular depth estimation, directional stereo audio, and accessibility-first controls.",
+  "requestFramePermissions": ["camera", "microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
